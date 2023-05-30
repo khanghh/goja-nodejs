@@ -7,14 +7,11 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
 )
 
 func TestProcessEnvStructure(t *testing.T) {
 	vm := goja.New()
-
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	Default().Enable(vm)
 
 	if c := vm.Get("process"); c == nil {
 		t.Fatal("process not found")
@@ -30,26 +27,22 @@ func TestProcessEnvValuesArtificial(t *testing.T) {
 	defer os.Unsetenv("GOJA_IS_AWESOME")
 
 	vm := goja.New()
-
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	Default().Enable(vm)
 
 	jsRes, err := vm.RunString("process.env['GOJA_IS_AWESOME']")
 
 	if err != nil {
-		t.Fatal(fmt.Sprintf("Error executing: %s", err))
+		t.Fatalf(fmt.Sprintf("Error executing: %s", err))
 	}
 
 	if jsRes.String() != "true" {
-		t.Fatal(fmt.Sprintf("Error executing: got %s but expected %s", jsRes, "true"))
+		t.Fatalf(fmt.Sprintf("Error executing: got %s but expected %s", jsRes, "true"))
 	}
 }
 
 func TestProcessEnvValuesBrackets(t *testing.T) {
 	vm := goja.New()
-
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	Default().Enable(vm)
 
 	for _, e := range os.Environ() {
 		envKeyValue := strings.SplitN(e, "=", 2)
@@ -58,11 +51,11 @@ func TestProcessEnvValuesBrackets(t *testing.T) {
 		jsRes, err := vm.RunString(jsExpr)
 
 		if err != nil {
-			t.Fatal(fmt.Sprintf("Error executing %s: %s", jsExpr, err))
+			t.Fatalf(fmt.Sprintf("Error executing %s: %s", jsExpr, err))
 		}
 
 		if jsRes.String() != envKeyValue[1] {
-			t.Fatal(fmt.Sprintf("Error executing %s: got %s but expected %s", jsExpr, jsRes, envKeyValue[1]))
+			t.Fatalf(fmt.Sprintf("Error executing %s: got %s but expected %s", jsExpr, jsRes, envKeyValue[1]))
 		}
 	}
 }

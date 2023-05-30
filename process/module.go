@@ -5,31 +5,36 @@ import (
 	"strings"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
 )
 
-type Process struct {
-	env map[string]string
-}
+const ModuleName = "node:process"
 
-func Require(runtime *goja.Runtime, module *goja.Object) {
-	p := &Process{
-		env: make(map[string]string),
-	}
+var defaultModule = ProcessModule{}
 
+func loadProcessEnv() map[string]string {
+	env := make(map[string]string)
 	for _, e := range os.Environ() {
 		envKeyValue := strings.SplitN(e, "=", 2)
-		p.env[envKeyValue[0]] = envKeyValue[1]
+		env[envKeyValue[0]] = envKeyValue[1]
 	}
-
-	o := module.Get("exports").(*goja.Object)
-	o.Set("env", p.env)
+	return env
 }
 
-func Enable(runtime *goja.Runtime) {
-	runtime.Set("process", require.Require(runtime, "process"))
+type ProcessModule struct {
 }
 
-func init() {
-	require.RegisterNativeModule("process", Require)
+func (m *ProcessModule) Export(runtime *goja.Runtime, module *goja.Object) {
+	process := runtime.Get("process").(*goja.Object)
+	module.Set("exports", process.Get("env"))
+}
+
+func (m *ProcessModule) Enable(runtime *goja.Runtime) {
+	env := loadProcessEnv()
+	process := runtime.NewObject()
+	process.Set("env", env)
+	runtime.Set("process", process)
+}
+
+func Default() *ProcessModule {
+	return &defaultModule
 }

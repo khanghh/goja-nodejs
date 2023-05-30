@@ -5,13 +5,11 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
 )
 
 func TestURL(t *testing.T) {
 	vm := goja.New()
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	Default().Enable(vm)
 
 	if c := vm.Get("URL"); c == nil {
 		t.Fatal("URL not found")
@@ -26,8 +24,7 @@ func TestURL(t *testing.T) {
 
 func TestGetters(t *testing.T) {
 	vm := goja.New()
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	Default().Enable(vm)
 
 	if c := vm.Get("URL"); c == nil {
 		t.Fatal("URL not found")
@@ -103,8 +100,7 @@ var urlTest string
 
 func TestJs(t *testing.T) {
 	vm := goja.New()
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	Default().Enable(vm)
 
 	if c := vm.Get("URL"); c == nil {
 		t.Fatal("URL not found")

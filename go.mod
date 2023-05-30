@@ -1,4 +1,4 @@
-module github.com/dop251/goja_nodejs
+module github.com/khanghh/goja-nodejs
 
 go 1.16
 

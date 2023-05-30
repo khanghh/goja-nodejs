@@ -6,15 +6,22 @@ import (
 	"path"
 	"strings"
 
-	js "github.com/dop251/goja"
+	"github.com/dop251/goja"
 )
 
-// NodeJS module search algorithm described by
-// https://nodejs.org/api/modules.html#modules_all_together
-func (r *RequireModule) resolve(modpath string) (module *js.Object, err error) {
-	origPath, modpath := modpath, filepathClean(modpath)
+type ModuleResolver struct {
+	registry    *Registry
+	runtime     *goja.Runtime
+	modules     map[string]*goja.Object
+	nodeModules map[string]*goja.Object
+}
+
+// Nodegoja module search algorithm described by
+// https://nodegoja.org/api/modules.html#modules_all_together
+func (r *ModuleResolver) resolve(modpath string) (module *goja.Object, err error) {
+	origPath, modpath := modpath, path.Clean(modpath)
 	if modpath == "" {
-		return nil, IllegalModuleNameError
+		return nil, ErrInvalidModule
 	}
 
 	var start string
@@ -53,33 +60,27 @@ func (r *RequireModule) resolve(modpath string) (module *js.Object, err error) {
 	}
 
 	if module == nil && err == nil {
-		err = InvalidModuleError
+		err = ErrInvalidModule
 	}
 	return
 }
 
-func (r *RequireModule) loadNative(path string) (*js.Object, error) {
-	module := r.modules[path]
+func (r *ModuleResolver) loadNative(name string) (*goja.Object, error) {
+	module := r.modules[name]
 	if module != nil {
 		return module, nil
 	}
 
-	var ldr ModuleLoader
-	if ldr = r.r.native[path]; ldr == nil {
-		ldr = native[path]
-	}
-
-	if ldr != nil {
+	if native := r.registry.natives[name]; native != nil {
 		module = r.createModuleObject()
-		r.modules[path] = module
-		ldr(r.runtime, module)
+		native.Export(r.runtime, module)
+		r.modules[name] = module
 		return module, nil
 	}
-
-	return nil, InvalidModuleError
+	return nil, ErrInvalidModule
 }
 
-func (r *RequireModule) loadAsFileOrDirectory(path string) (module *js.Object, err error) {
+func (r *ModuleResolver) loadAsFileOrDirectory(path string) (module *goja.Object, err error) {
 	if module, err = r.loadAsFile(path); module != nil || err != nil {
 		return
 	}
@@ -87,7 +88,7 @@ func (r *RequireModule) loadAsFileOrDirectory(path string) (module *js.Object, e
 	return r.loadAsDirectory(path)
 }
 
-func (r *RequireModule) loadAsFile(path string) (module *js.Object, err error) {
+func (r *ModuleResolver) loadAsFile(path string) (module *goja.Object, err error) {
 	if module, err = r.loadModule(path); module != nil || err != nil {
 		return
 	}
@@ -101,7 +102,7 @@ func (r *RequireModule) loadAsFile(path string) (module *js.Object, err error) {
 	return r.loadModule(p)
 }
 
-func (r *RequireModule) loadIndex(modpath string) (module *js.Object, err error) {
+func (r *ModuleResolver) loadIndex(modpath string) (module *goja.Object, err error) {
 	p := path.Join(modpath, "index.js")
 	if module, err = r.loadModule(p); module != nil || err != nil {
 		return
@@ -111,9 +112,9 @@ func (r *RequireModule) loadIndex(modpath string) (module *js.Object, err error)
 	return r.loadModule(p)
 }
 
-func (r *RequireModule) loadAsDirectory(modpath string) (module *js.Object, err error) {
+func (r *ModuleResolver) loadAsDirectory(modpath string) (module *goja.Object, err error) {
 	p := path.Join(modpath, "package.json")
-	buf, err := r.r.getSource(p)
+	buf, err := r.registry.getSource(p)
 	if err != nil {
 		return r.loadIndex(modpath)
 	}
@@ -133,12 +134,12 @@ func (r *RequireModule) loadAsDirectory(modpath string) (module *js.Object, err 
 	return r.loadIndex(m)
 }
 
-func (r *RequireModule) loadNodeModule(modpath, start string) (*js.Object, error) {
+func (r *ModuleResolver) loadNodeModule(modpath, start string) (*goja.Object, error) {
 	return r.loadAsFileOrDirectory(path.Join(start, modpath))
 }
 
-func (r *RequireModule) loadNodeModules(modpath, start string) (module *js.Object, err error) {
-	for _, dir := range r.r.globalFolders {
+func (r *ModuleResolver) loadNodeModules(modpath, start string) (module *goja.Object, err error) {
+	for _, dir := range r.registry.globalFolders {
 		if module, err = r.loadNodeModule(modpath, dir); module != nil || err != nil {
 			return
 		}
@@ -166,8 +167,8 @@ func (r *RequireModule) loadNodeModules(modpath, start string) (module *js.Objec
 	return
 }
 
-func (r *RequireModule) getCurrentModulePath() string {
-	var buf [2]js.StackFrame
+func (r *ModuleResolver) getCurrentModulePath() string {
+	var buf [2]goja.StackFrame
 	frames := r.runtime.CaptureCallStack(2, buf[:0])
 	if len(frames) < 2 {
 		return "."
@@ -175,13 +176,13 @@ func (r *RequireModule) getCurrentModulePath() string {
 	return path.Dir(frames[1].SrcName())
 }
 
-func (r *RequireModule) createModuleObject() *js.Object {
+func (r *ModuleResolver) createModuleObject() *goja.Object {
 	module := r.runtime.NewObject()
 	module.Set("exports", r.runtime.NewObject())
 	return module
 }
 
-func (r *RequireModule) loadModule(path string) (*js.Object, error) {
+func (r *ModuleResolver) loadModule(path string) (*goja.Object, error) {
 	module := r.modules[path]
 	if module == nil {
 		module = r.createModuleObject()
@@ -190,7 +191,7 @@ func (r *RequireModule) loadModule(path string) (*js.Object, error) {
 		if err != nil {
 			module = nil
 			delete(r.modules, path)
-			if errors.Is(err, ModuleFileDoesNotExistError) {
+			if errors.Is(err, ErrModuleNotExist) {
 				err = nil
 			}
 		}
@@ -199,9 +200,9 @@ func (r *RequireModule) loadModule(path string) (*js.Object, error) {
 	return module, nil
 }
 
-func (r *RequireModule) loadModuleFile(path string, jsModule *js.Object) error {
+func (r *ModuleResolver) loadModuleFile(path string, gojaModule *goja.Object) error {
 
-	prg, err := r.r.getCompiledSource(path)
+	prg, err := r.registry.getCompiledSource(path)
 
 	if err != nil {
 		return err
@@ -212,21 +213,53 @@ func (r *RequireModule) loadModuleFile(path string, jsModule *js.Object) error {
 		return err
 	}
 
-	if call, ok := js.AssertFunction(f); ok {
-		jsExports := jsModule.Get("exports")
-		jsRequire := r.runtime.Get("require")
+	if call, ok := goja.AssertFunction(f); ok {
+		gojaExports := gojaModule.Get("exports")
+		gojaRequire := r.runtime.Get("require")
 
-		// Run the module source, with "jsExports" as "this",
-		// "jsExports" as the "exports" variable, "jsRequire"
-		// as the "require" variable and "jsModule" as the
-		// "module" variable (Nodejs capable).
-		_, err = call(jsExports, jsExports, jsRequire, jsModule)
+		// Run the module source, with "gojaExports" as "this",
+		// "gojaExports" as the "exports" variable, "gojaRequire"
+		// as the "require" variable and "gojaModule" as the
+		// "module" variable (Nodegoja capable).
+		_, err = call(gojaExports, gojaExports, gojaRequire, gojaModule)
 		if err != nil {
 			return err
 		}
 	} else {
-		return InvalidModuleError
+		return ErrInvalidModule
 	}
 
 	return nil
+}
+
+func (r *ModuleResolver) require(call goja.FunctionCall) goja.Value {
+	ret, err := r.Require(call.Argument(0).String())
+	if err != nil {
+		if _, ok := err.(*goja.Exception); !ok {
+			panic(r.runtime.NewGoError(err))
+		}
+		panic(err)
+	}
+	return ret
+}
+
+// Require can be used to import modules from Go source (similar to goja require() function).
+func (r *ModuleResolver) Require(p string) (ret goja.Value, err error) {
+	module, err := r.resolve(p)
+	if err != nil {
+		return
+	}
+	ret = module.Get("exports")
+	return
+}
+
+func Require(runtime *goja.Runtime, name string) (goja.Value, error) {
+	if require, ok := goja.AssertFunction(runtime.Get("require")); ok {
+		module, err := require(goja.Undefined(), runtime.ToValue(name))
+		if err != nil {
+			return nil, ErrModuleNotExist
+		}
+		return module, nil
+	}
+	panic(runtime.NewTypeError("Please enable require for this runtime using new(require.Registry).Enable(runtime)"))
 }

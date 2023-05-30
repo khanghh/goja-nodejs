@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/khanghh/goja-nodejs/require"
 )
 
 func TestConsole(t *testing.T) {
 	vm := goja.New()
 
-	new(require.Registry).Enable(vm)
-	Enable(vm)
+	registry := require.NewRegistry()
+	registry.RegisterNativeModule("console", Default())
+	registry.Enable(vm)
 
 	if c := vm.Get("console"); c == nil {
 		t.Fatal("console not found")

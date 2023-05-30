@@ -1,22 +1,37 @@
 package require
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path"
 	"testing"
 
+	"github.com/dop251/goja"
 	js "github.com/dop251/goja"
 )
+
+type testNativeModule struct {
+}
+
+func (m *testNativeModule) Enable(runtime *goja.Runtime) {
+	testFunc := func(call js.FunctionCall) js.Value {
+		return runtime.ToValue("passed")
+	}
+	runtime.Set("test", testFunc)
+}
+
+func (m *testNativeModule) Export(runtime *goja.Runtime, module *goja.Object) {
+	test := runtime.Get("test")
+	exports := module.Get("exports").(*goja.Object)
+	exports.Set("test", test)
+}
 
 func mapFileSystemSourceLoader(files map[string]string) SourceLoader {
 	return func(path string) ([]byte, error) {
 		s, ok := files[path]
 		if !ok {
-			return nil, ModuleFileDoesNotExistError
+			return nil, ErrModuleNotExist
 		}
 		return []byte(s), nil
 	}
@@ -31,14 +46,8 @@ func TestRequireNativeModule(t *testing.T) {
 	vm := js.New()
 
 	registry := new(Registry)
+	registry.RegisterNativeModule("test/m", &testNativeModule{})
 	registry.Enable(vm)
-
-	RegisterNativeModule("test/m", func(runtime *js.Runtime, module *js.Object) {
-		o := module.Get("exports").(*js.Object)
-		o.Set("test", func(call js.FunctionCall) js.Value {
-			return runtime.ToValue("passed")
-		})
-	})
 
 	v, err := vm.RunString(SCRIPT)
 	if err != nil {
@@ -50,59 +59,6 @@ func TestRequireNativeModule(t *testing.T) {
 	}
 }
 
-func TestRequireRegistryNativeModule(t *testing.T) {
-	const SCRIPT = `
-	var log = require("test/log");
-	log.print('passed');
-	`
-
-	logWithOutput := func(w io.Writer, prefix string) ModuleLoader {
-		return func(vm *js.Runtime, module *js.Object) {
-			o := module.Get("exports").(*js.Object)
-			o.Set("print", func(call js.FunctionCall) js.Value {
-				fmt.Fprint(w, prefix, call.Argument(0).String())
-				return js.Undefined()
-			})
-		}
-	}
-
-	vm1 := js.New()
-	buf1 := &bytes.Buffer{}
-
-	registry1 := new(Registry)
-	registry1.Enable(vm1)
-
-	registry1.RegisterNativeModule("test/log", logWithOutput(buf1, "vm1 "))
-
-	vm2 := js.New()
-	buf2 := &bytes.Buffer{}
-
-	registry2 := new(Registry)
-	registry2.Enable(vm2)
-
-	registry2.RegisterNativeModule("test/log", logWithOutput(buf2, "vm2 "))
-
-	_, err := vm1.RunString(SCRIPT)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	s := buf1.String()
-	if s != "vm1 passed" {
-		t.Fatalf("vm1: Unexpected result: %q", s)
-	}
-
-	_, err = vm2.RunString(SCRIPT)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	s = buf2.String()
-	if s != "vm2 passed" {
-		t.Fatalf("vm2: Unexpected result: %q", s)
-	}
-}
-
 func TestRequire(t *testing.T) {
 	const SCRIPT = `
 	var m = require("./testdata/m.js");
@@ -111,7 +67,7 @@ func TestRequire(t *testing.T) {
 
 	vm := js.New()
 
-	registry := new(Registry)
+	registry := NewRegistry()
 	registry.Enable(vm)
 
 	v, err := vm.RunString(SCRIPT)
@@ -346,7 +302,7 @@ func TestSourceMapLoader(t *testing.T) {
 			return []byte(`{"version":3,"file":"m.js","sourceRoot":"","sources":["m.ts"],"names":[],"mappings":";AAAA"}
 `), nil
 		}
-		return nil, ModuleFileDoesNotExistError
+		return nil, ErrModuleNotExist
 	}))
 
 	rr := r.Enable(vm)

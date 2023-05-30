@@ -2,11 +2,13 @@ package util
 
 import (
 	"bytes"
+
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
 )
 
 const ModuleName = "node:util"
+
+var defaultModule = UtilModule{}
 
 type Util struct {
 	runtime *goja.Runtime
@@ -68,7 +70,7 @@ func (u *Util) Format(b *bytes.Buffer, f string, args ...goja.Value) {
 	}
 }
 
-func (u *Util) js_format(call goja.FunctionCall) goja.Value {
+func (u *Util) jsFormat(call goja.FunctionCall) goja.Value {
 	var b bytes.Buffer
 	var fmt string
 
@@ -85,20 +87,18 @@ func (u *Util) js_format(call goja.FunctionCall) goja.Value {
 	return u.runtime.ToValue(b.String())
 }
 
-func Require(runtime *goja.Runtime, module *goja.Object) {
-	u := &Util{
-		runtime: runtime,
-	}
+type UtilModule struct {
+}
+
+func (m *UtilModule) Enable(runtime *goja.Runtime) {
+}
+
+func (m *UtilModule) Export(runtime *goja.Runtime, module *goja.Object) {
+	util := &Util{runtime}
 	obj := module.Get("exports").(*goja.Object)
-	obj.Set("format", u.js_format)
+	obj.Set("format", util.jsFormat)
 }
 
-func New(runtime *goja.Runtime) *Util {
-	return &Util{
-		runtime: runtime,
-	}
-}
-
-func init() {
-	require.RegisterNativeModule(ModuleName, Require)
+func Default() *UtilModule {
+	return &defaultModule
 }

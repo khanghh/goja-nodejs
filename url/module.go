@@ -10,12 +10,12 @@ import (
 	"golang.org/x/net/idna"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
 )
 
 const ModuleName = "node:url"
 
 var (
+	defaultModule  = UrlModule{}
 	reflectTypeURL = reflect.TypeOf((*url.URL)(nil))
 	reflectTypeInt = reflect.TypeOf(0)
 )
@@ -331,34 +331,39 @@ func parseURL(r *goja.Runtime, s string, isBase bool) *url.URL {
 	return u
 }
 
-func createURLConstructor(r *goja.Runtime) goja.Value {
-	f := r.ToValue(func(call goja.ConstructorCall) *goja.Object {
+func createURLConstructor(runtime *goja.Runtime) goja.Value {
+	f := runtime.ToValue(func(call goja.ConstructorCall) *goja.Object {
 		var u *url.URL
 		if baseArg := call.Argument(1); !goja.IsUndefined(baseArg) {
-			base := parseURL(r, baseArg.String(), true)
-			ref := parseURL(r, call.Arguments[0].String(), false)
+			base := parseURL(runtime, baseArg.String(), true)
+			ref := parseURL(runtime, call.Arguments[0].String(), false)
 			u = base.ResolveReference(ref)
 		} else {
-			u = parseURL(r, call.Argument(0).String(), true)
+			u = parseURL(runtime, call.Argument(0).String(), true)
 		}
-		res := r.ToValue(u).(*goja.Object)
+		res := runtime.ToValue(u).(*goja.Object)
 		res.SetPrototype(call.This.Prototype())
 		return res
 	}).(*goja.Object)
 
-	f.Set("prototype", createURLPrototype(r))
+	f.Set("prototype", createURLPrototype(runtime))
 	return f
 }
 
-func Require(runtime *goja.Runtime, module *goja.Object) {
+type UrlModule struct {
+}
+
+func (m *UrlModule) Enable(runtime *goja.Runtime) {
+	urlCtor := createURLConstructor(runtime)
+	runtime.Set("URL", urlCtor)
+}
+
+func (m *UrlModule) Export(runtime *goja.Runtime, module *goja.Object) {
+	urlCtor := runtime.Get("URL")
 	exports := module.Get("exports").(*goja.Object)
-	exports.Set("URL", createURLConstructor(runtime))
+	exports.Set("URL", urlCtor)
 }
 
-func Enable(runtime *goja.Runtime) {
-	runtime.Set("URL", require.Require(runtime, ModuleName).ToObject(runtime).Get("URL"))
-}
-
-func init() {
-	require.RegisterNativeModule(ModuleName, Require)
+func Default() *UrlModule {
+	return &defaultModule
 }

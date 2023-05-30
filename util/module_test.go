@@ -5,13 +5,18 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/khanghh/goja-nodejs/require"
 )
 
 func TestUtil_Format(t *testing.T) {
 	vm := goja.New()
-	util := New(vm)
+	Default().Enable(vm)
 
+	registry := require.NewRegistry()
+	registry.RegisterNativeModule("url", &UtilModule{})
+	registry.Enable(vm)
+
+	util := New(vm)
 	var b bytes.Buffer
 	util.Format(&b, "Test: %% %д %s %d, %j", vm.ToValue("string"), vm.ToValue(42), vm.NewObject())
 

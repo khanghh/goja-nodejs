@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/dop251/goja"
-	"github.com/dop251/goja_nodejs/console"
-	"github.com/dop251/goja_nodejs/require"
+	"github.com/khanghh/goja-nodejs/console"
+	"github.com/khanghh/goja-nodejs/require"
 )
 
 type job struct {
@@ -46,6 +46,7 @@ type EventLoop struct {
 	running  bool
 
 	enableConsole bool
+	console       *console.Console
 	registry      *require.Registry
 }
 
@@ -68,7 +69,8 @@ func NewEventLoop(opts ...Option) *EventLoop {
 	}
 	loop.registry.Enable(vm)
 	if loop.enableConsole {
-		console.Enable(vm)
+		loop.console = &console.Console{}
+		// console.Enable(vm)
 	}
 	vm.Set("setTimeout", loop.setTimeout)
 	vm.Set("setInterval", loop.setInterval)
