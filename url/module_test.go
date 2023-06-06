@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
+	"github.com/khanghh/goja-nodejs/require"
 )
 
 func TestURL(t *testing.T) {
@@ -100,14 +101,15 @@ var urlTest string
 
 func TestJs(t *testing.T) {
 	vm := goja.New()
-	Default().Enable(vm)
+	registry := require.NewRegistry()
+	registry.RegisterNativeModule(ModuleName, Default())
+	registry.Enable(vm)
 
 	if c := vm.Get("URL"); c == nil {
 		t.Fatal("URL not found")
 	}
 
 	// Script will throw an error on failed validation
-
 	_, err := vm.RunScript("testdata/url_test.js", urlTest)
 	if err != nil {
 		if ex, ok := err.(*goja.Exception); ok {
