@@ -1,6 +1,7 @@
 package console
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/dop251/goja"
@@ -57,13 +58,13 @@ type ConsoleModule struct {
 }
 
 func (m *ConsoleModule) Enable(runtime *goja.Runtime) {
-	util, err := require.Require(runtime, util.ModuleName)
+	utilModule, err := require.Require(runtime, util.ModuleName)
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("native module not found: %s", util.ModuleName))
 	}
 	console := &Console{
 		runtime: runtime,
-		util:    util.(*goja.Object),
+		util:    utilModule.(*goja.Object),
 	}
 	obj := runtime.NewObject()
 	obj.Set("log", console.log(m.printer.Log))
