@@ -1,7 +1,7 @@
 Nodejs compatibility library for Goja
 ====
 
-This is a collection of Goja modules that provide nodejs compatibility.
+This is a collection of [goja](https://github.com/dop251/goja) modules that provide nodejs compatibility.
 
 Example:
 
@@ -10,13 +10,16 @@ package main
 
 import (
     "github.com/dop251/goja"
-    "github.com/dop251/goja_nodejs/require"
+    "github.com/khanghh/goja-nodejs/require"
+    "github.com/khanghh/goja-nodejs/util"
+    "github.com/khanghh/goja-nodejs/console"
 )
 
 func main() {
-    registry := new(require.Registry) // this can be shared by multiple runtimes
-
     runtime := goja.New()
+    registry := require.NewRegistry() // this can be shared by multiple runtimes
+    registry.RegisterNativeModule(util.ModuleName, util.Default())
+    registry.RegisterNativeModule(console.ModuleName, console.Default())
     req := registry.Enable(runtime)
 
     runtime.RunString(`
@@ -29,4 +32,7 @@ func main() {
 }
 ```
 
-More modules will be added. Contributions welcome too.
+##Contributing
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+
+Please make sure to update tests as appropriate.
