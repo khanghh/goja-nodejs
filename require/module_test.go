@@ -27,6 +27,27 @@ func (m *testNativeModule) Export(runtime *goja.Runtime, module *goja.Object) {
 	exports.Set("test", test)
 }
 
+func TestRequireJSModule(t *testing.T) {
+	const SCRIPT = `
+	var m = require("./testdata/main.js");
+	m.test();
+	`
+
+	vm := js.New()
+
+	registry := NewRegistry()
+	registry.Enable(vm)
+
+	v, err := vm.RunString(SCRIPT)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !v.StrictEquals(vm.ToValue("passed!")) {
+		t.Fatalf("Unexpected result: %v", v)
+	}
+}
+
 func mapFileSystemSourceLoader(files map[string]string) SourceLoader {
 	return func(path string) ([]byte, error) {
 		s, ok := files[path]
