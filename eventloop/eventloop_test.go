@@ -117,42 +117,12 @@ func TestRunNoSchedule(t *testing.T) {
 	}
 }
 
-func TestRunWithConsole(t *testing.T) {
-	const SCRIPT = `
-	console.log("Started");
-	`
-
-	loop := NewEventLoop()
-	prg, err := goja.Compile("main.js", SCRIPT, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	loop.Run(func(vm *goja.Runtime) {
-		_, err = vm.RunProgram(prg)
-	})
-	if err != nil {
-		t.Fatal("Call to console.log generated an error", err)
-	}
-
-	loop = NewEventLoop(EnableConsole(true))
-	prg, err = goja.Compile("main.js", SCRIPT, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	loop.Run(func(vm *goja.Runtime) {
-		_, err = vm.RunProgram(prg)
-	})
-	if err != nil {
-		t.Fatal("Call to console.log generated an error", err)
-	}
-}
-
 func TestRunNoConsole(t *testing.T) {
 	const SCRIPT = `
 	console.log("Started");
 	`
 
-	loop := NewEventLoop(EnableConsole(false))
+	loop := NewEventLoop()
 	prg, err := goja.Compile("main.js", SCRIPT, false)
 	if err != nil {
 		t.Fatal(err)
