@@ -1,11 +1,14 @@
 package eventloop
 
 import (
+	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/dop251/goja"
+	"github.com/khanghh/goja-nodejs/console"
 	"github.com/khanghh/goja-nodejs/require"
 )
 
@@ -82,6 +85,12 @@ func WithRegistry(registry *require.Registry) Option {
 	}
 }
 
+func EnableConsole() Option {
+	return func(loop *EventLoop) {
+		console.Default().Enable(loop.vm)
+	}
+}
+
 func (loop *EventLoop) schedule(call goja.FunctionCall, repeating bool) goja.Value {
 	if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
 		delay := call.Argument(1).ToInteger()
@@ -89,7 +98,11 @@ func (loop *EventLoop) schedule(call goja.FunctionCall, repeating bool) goja.Val
 		if len(call.Arguments) > 2 {
 			args = append(args, call.Arguments[2:]...)
 		}
-		f := func() { fn(nil, args...) }
+		f := func() {
+			if _, err := fn(nil, args...); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}
 		loop.jobCount++
 		if repeating {
 			return loop.vm.ToValue(loop.addInterval(f, time.Duration(delay)*time.Millisecond))
@@ -114,7 +127,11 @@ func (loop *EventLoop) setImmediate(call goja.FunctionCall) goja.Value {
 		if len(call.Arguments) > 1 {
 			args = append(args, call.Arguments[1:]...)
 		}
-		f := func() { fn(nil, args...) }
+		f := func() {
+			if _, err := fn(nil, args...); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}
 		loop.jobCount++
 		return loop.vm.ToValue(loop.addImmediate(f))
 	}

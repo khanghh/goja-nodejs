@@ -18,7 +18,7 @@ func TestRun(t *testing.T) {
 	console.log("Started");
 	`
 
-	loop := NewEventLoop()
+	loop := NewEventLoop(EnableConsole())
 	prg, err := goja.Compile("main.js", SCRIPT, false)
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func TestStart(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loop := NewEventLoop()
+	loop := NewEventLoop(EnableConsole())
 	loop.Start()
 
 	loop.RunOnLoop(func(vm *goja.Runtime) {
@@ -66,7 +66,7 @@ func TestInterval(t *testing.T) {
 	console.log("Started");
 	`
 
-	loop := NewEventLoop()
+	loop := NewEventLoop(EnableConsole())
 	prg, err := goja.Compile("main.js", SCRIPT, false)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +94,7 @@ func TestImmediate(t *testing.T) {
 	console.log("Started");
 	`
 
-	loop := NewEventLoop()
+	loop := NewEventLoop(EnableConsole())
 	prg, err := goja.Compile("main.js", SCRIPT, false)
 	if err != nil {
 		t.Fatal(err)
@@ -148,7 +148,7 @@ func TestClearIntervalRace(t *testing.T) {
 	clearInterval(t);
 	`
 
-	loop := NewEventLoop()
+	loop := NewEventLoop(EnableConsole())
 	prg, err := goja.Compile("main.js", SCRIPT, false)
 	if err != nil {
 		t.Fatal(err)
