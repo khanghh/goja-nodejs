@@ -30,9 +30,17 @@ func main() {
     m, err := req.Require("./m.js")
     _, _ = m, err
 }
+
+func example() {
+  vm := goja.New()
+  console.Default().Enable(vm)
+  vm.RunString(`
+  console.log("Hello, %s!", "World");
+  `)
+}
 ```
 
-##Contributing
+## Contributing
 Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
 Please make sure to update tests as appropriate.
