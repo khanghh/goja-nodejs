@@ -4,17 +4,11 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	"github.com/khanghh/goja-nodejs/require"
-	"github.com/khanghh/goja-nodejs/util"
 )
 
 func TestConsole(t *testing.T) {
 	vm := goja.New()
-
-	registry := require.NewRegistry()
-	registry.RegisterNativeModule(util.ModuleName, util.Default())
-	registry.RegisterNativeModule(ModuleName, Default())
-	registry.Enable(vm)
+	Default().Enable(vm)
 
 	if c := vm.Get("console"); c == nil {
 		t.Fatal("console not found")
@@ -35,16 +29,11 @@ func TestConsole(t *testing.T) {
 
 func TestConsoleWithPrinter(t *testing.T) {
 	vm := goja.New()
-
 	var lastPrint string
 	printer := PrinterFunc(func(s string) {
 		lastPrint = s
 	})
-
-	registry := new(require.Registry)
-	registry.RegisterNativeModule(util.ModuleName, util.Default())
-	registry.RegisterNativeModule(ModuleName, NewWithPrinter(printer))
-	registry.Enable(vm)
+	New(WithPrinter(printer)).Enable(vm)
 
 	if c := vm.Get("console"); c == nil {
 		t.Fatal("console not found")

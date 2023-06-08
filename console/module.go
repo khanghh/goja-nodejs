@@ -1,11 +1,9 @@
 package console
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/dop251/goja"
-	"github.com/khanghh/goja-nodejs/require"
 	"github.com/khanghh/goja-nodejs/util"
 )
 
@@ -13,11 +11,6 @@ const ModuleName = "node:console"
 
 var defaultModule = ConsoleModule{
 	printer: DefaultPrinter,
-}
-
-type Console struct {
-	runtime *goja.Runtime
-	util    *goja.Object
 }
 
 type Printer interface {
@@ -36,51 +29,74 @@ func (print PrinterFunc) Error(s string) { print(s) }
 
 var DefaultPrinter Printer = PrinterFunc(func(s string) { log.Print(s) })
 
-func (c *Console) log(print func(string)) func(goja.FunctionCall) goja.Value {
-	return func(call goja.FunctionCall) goja.Value {
-		if format, ok := goja.AssertFunction(c.util.Get("format")); ok {
-			ret, err := format(c.util, call.Arguments...)
-			if err != nil {
-				panic(err)
-			}
-
-			print(ret.String())
-		} else {
-			panic(c.runtime.NewTypeError("util.format is not a function"))
-		}
-
-		return nil
-	}
+type Console struct {
+	runtime *goja.Runtime
+	printer Printer
 }
+
+func (c *Console) formatPrinterOutput(call goja.FunctionCall) string {
+	var format string
+	if arg := call.Argument(0); !goja.IsUndefined(arg) {
+		format = arg.String()
+	}
+	var args []goja.Value
+	if len(call.Arguments) > 0 {
+		args = call.Arguments[1:]
+	}
+	out := util.Format(c.runtime, format, args...)
+	return out.String()
+}
+
+func (c *Console) log(call goja.FunctionCall) goja.Value {
+	c.printer.Log(c.formatPrinterOutput(call))
+	return goja.Undefined()
+}
+
+func (c *Console) warn(call goja.FunctionCall) goja.Value {
+	c.printer.Warn(c.formatPrinterOutput(call))
+	return goja.Undefined()
+}
+
+func (c *Console) error(call goja.FunctionCall) goja.Value {
+	c.printer.Error(c.formatPrinterOutput(call))
+	return goja.Undefined()
+}
+
+type Option func(*ConsoleModule)
 
 type ConsoleModule struct {
 	printer Printer
 }
 
 func (m *ConsoleModule) Enable(runtime *goja.Runtime) {
-	utilModule, err := require.Require(runtime, util.ModuleName)
-	if err != nil {
-		panic(fmt.Sprintf("native module not found: %s", util.ModuleName))
-	}
 	console := &Console{
 		runtime: runtime,
-		util:    utilModule.(*goja.Object),
+		printer: m.printer,
 	}
 	obj := runtime.NewObject()
-	obj.Set("log", console.log(m.printer.Log))
-	obj.Set("error", console.log(m.printer.Error))
-	obj.Set("warn", console.log(m.printer.Warn))
+	obj.Set("log", console.log)
+	obj.Set("warn", console.warn)
+	obj.Set("error", console.error)
 	runtime.Set("console", obj)
 }
 
 func (m *ConsoleModule) Export(runtime *goja.Runtime, module *goja.Object) {
 }
 
-func NewWithPrinter(printer Printer) *ConsoleModule {
-	if printer == nil {
-		printer = DefaultPrinter
+func WithPrinter(printer Printer) Option {
+	return func(cm *ConsoleModule) {
+		cm.printer = printer
 	}
-	return &ConsoleModule{printer}
+}
+
+func New(opts ...Option) *ConsoleModule {
+	cm := &ConsoleModule{
+		printer: DefaultPrinter,
+	}
+	for _, opt := range opts {
+		opt(cm)
+	}
+	return cm
 }
 
 func Default() *ConsoleModule {
