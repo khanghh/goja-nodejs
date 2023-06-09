@@ -91,6 +91,10 @@ func EnableConsole() Option {
 	}
 }
 
+func (loop *EventLoop) Runtime() *goja.Runtime {
+	return loop.vm
+}
+
 func (loop *EventLoop) schedule(call goja.FunctionCall, repeating bool) goja.Value {
 	if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
 		delay := call.Argument(1).ToInteger()
