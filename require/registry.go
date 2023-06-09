@@ -110,24 +110,24 @@ func (r *Registry) getSource(p string) ([]byte, error) {
 	return srcLoader(p)
 }
 
-func (r *Registry) getCompiledSource(p string) (*goja.Program, error) {
+func (r *Registry) getCompiledSource(filepath string) (*goja.Program, error) {
 	r.Lock()
 	defer r.Unlock()
 
-	prg := r.compiled[p]
+	prg := r.compiled[filepath]
 	if prg == nil {
-		buf, err := r.getSource(p)
+		buf, err := r.getSource(filepath)
 		if err != nil {
 			return nil, err
 		}
-		s := string(buf)
+		srouce := string(buf)
 
-		if path.Ext(p) == ".json" {
-			s = "module.exports = JSON.parse('" + template.JSEscapeString(s) + "')"
+		if path.Ext(filepath) == ".json" {
+			srouce = "module.exports = JSON.parse('" + template.JSEscapeString(srouce) + "')"
 		}
 
-		source := "(function(exports, require, module) {" + s + "\n})"
-		parsed, err := goja.Parse(p, source, parser.WithSourceMapLoader(r.srcLoader))
+		source := "(function(exports, require, module) {" + srouce + "\n})"
+		parsed, err := goja.Parse(filepath, source, parser.WithSourceMapLoader(r.srcLoader))
 		if err != nil {
 			return nil, err
 		}
@@ -136,7 +136,7 @@ func (r *Registry) getCompiledSource(p string) (*goja.Program, error) {
 			if r.compiled == nil {
 				r.compiled = make(map[string]*goja.Program)
 			}
-			r.compiled[p] = prg
+			r.compiled[filepath] = prg
 		}
 		return prg, err
 	}

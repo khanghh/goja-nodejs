@@ -8,14 +8,13 @@ import (
 	"testing"
 
 	"github.com/dop251/goja"
-	js "github.com/dop251/goja"
 )
 
 type testNativeModule struct {
 }
 
 func (m *testNativeModule) Enable(runtime *goja.Runtime) {
-	testFunc := func(call js.FunctionCall) js.Value {
+	testFunc := func(call goja.FunctionCall) goja.Value {
 		return runtime.ToValue("passed")
 	}
 	runtime.Set("test", testFunc)
@@ -33,7 +32,7 @@ func TestRequireJSModule(t *testing.T) {
 	m.test();
 	`
 
-	vm := js.New()
+	vm := goja.New()
 
 	registry := NewRegistry()
 	registry.Enable(vm)
@@ -64,7 +63,7 @@ func TestRequireNativeModule(t *testing.T) {
 	m.test();
 	`
 
-	vm := js.New()
+	vm := goja.New()
 
 	registry := new(Registry)
 	registry.RegisterNativeModule("test/m", &testNativeModule{})
@@ -86,7 +85,7 @@ func TestRequire(t *testing.T) {
 	m.test();
 	`
 
-	vm := js.New()
+	vm := goja.New()
 
 	registry := NewRegistry()
 	registry.Enable(vm)
@@ -115,7 +114,7 @@ func TestSourceLoader(t *testing.T) {
 	exports.test = test;
 	`
 
-	vm := js.New()
+	vm := goja.New()
 
 	registry := NewRegistry(WithGlobalFolders("."), WithLoader(func(name string) ([]byte, error) {
 		if name == "m.js" {
@@ -153,7 +152,7 @@ func TestStrictModule(t *testing.T) {
 	exports.test = test;
 	`
 
-	vm := js.New()
+	vm := goja.New()
 
 	registry := NewRegistry(WithGlobalFolders("."), WithLoader(func(name string) ([]byte, error) {
 		if name == "m.js" {
@@ -174,8 +173,8 @@ func TestStrictModule(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	testRequire := func(src, fpath string, globalFolders []string, fs map[string]string) (*js.Runtime, js.Value, error) {
-		vm := js.New()
+	testRequire := func(src, fpath string, globalFolders []string, fs map[string]string) (*goja.Runtime, goja.Value, error) {
+		vm := goja.New()
 		r := NewRegistry(WithGlobalFolders(globalFolders...), WithLoader(mapFileSystemSourceLoader(fs)))
 		r.Enable(vm)
 		t.Logf("Require(%s)", fpath)
@@ -274,7 +273,7 @@ func TestResolve(t *testing.T) {
 }
 
 func TestRequireCycle(t *testing.T) {
-	vm := js.New()
+	vm := goja.New()
 	r := NewRegistry(WithLoader(mapFileSystemSourceLoader(map[string]string{
 		"a.js": `var b = require('./b.js'); exports.done = true;`,
 		"b.js": `var a = require('./a.js'); exports.done = true;`,
@@ -294,7 +293,7 @@ func TestRequireCycle(t *testing.T) {
 }
 
 func TestErrorPropagation(t *testing.T) {
-	vm := js.New()
+	vm := goja.New()
 	r := NewRegistry(WithLoader(mapFileSystemSourceLoader(map[string]string{
 		"m.js": `throw 'test passed';`,
 	})))
@@ -303,7 +302,7 @@ func TestErrorPropagation(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if ex, ok := err.(*js.Exception); ok {
+	if ex, ok := err.(*goja.Exception); ok {
 		if !ex.Value().StrictEquals(vm.ToValue("test passed")) {
 			t.Fatalf("Unexpected Exception: %v", ex)
 		}
@@ -313,7 +312,7 @@ func TestErrorPropagation(t *testing.T) {
 }
 
 func TestSourceMapLoader(t *testing.T) {
-	vm := js.New()
+	vm := goja.New()
 	r := NewRegistry(WithLoader(func(p string) ([]byte, error) {
 		switch p {
 		case "dir/m.js":
@@ -331,7 +330,7 @@ func TestSourceMapLoader(t *testing.T) {
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if ex, ok := err.(*js.Exception); ok {
+	if ex, ok := err.(*goja.Exception); ok {
 		if !ex.Value().StrictEquals(vm.ToValue("test passed")) {
 			t.Fatalf("Unexpected Exception: %v", ex)
 		}
@@ -369,14 +368,14 @@ func TestDefaultModuleLoader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	vm := js.New()
+	vm := goja.New()
 	r := NewRegistry()
 	rr := r.Enable(vm)
 	_, err = rr.Require("./module")
 	if err == nil {
 		t.Fatal("Expected an error")
 	}
-	if ex, ok := err.(*js.Exception); ok {
+	if ex, ok := err.(*goja.Exception); ok {
 		if !ex.Value().StrictEquals(vm.ToValue("test passed")) {
 			t.Fatalf("Unexpected Exception: %v", ex)
 		}
