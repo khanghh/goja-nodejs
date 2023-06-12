@@ -95,6 +95,14 @@ func (loop *EventLoop) Runtime() *goja.Runtime {
 	return loop.vm
 }
 
+func (loop *EventLoop) JobCount() int {
+	return int(loop.jobCount)
+}
+
+func (loop *EventLoop) Running() bool {
+	return loop.running
+}
+
 func (loop *EventLoop) schedule(call goja.FunctionCall, repeating bool) goja.Value {
 	if fn, ok := goja.AssertFunction(call.Argument(0)); ok {
 		delay := call.Argument(1).ToInteger()
