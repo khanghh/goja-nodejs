@@ -25,13 +25,12 @@ type ProcessModule struct {
 
 func (m *ProcessModule) Export(runtime *goja.Runtime, module *goja.Object) {
 	process := runtime.Get("process").(*goja.Object)
-	module.Set("exports", process.Get("env"))
+	module.Set("exports", process)
 }
 
 func (m *ProcessModule) Enable(runtime *goja.Runtime) {
-	env := loadProcessEnv()
 	process := runtime.NewObject()
-	process.Set("env", env)
+	process.Set("env", loadProcessEnv())
 	runtime.Set("process", process)
 }
 
