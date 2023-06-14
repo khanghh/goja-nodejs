@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 
 	"github.com/dop251/goja"
@@ -76,6 +77,9 @@ func marshalCircular(v interface{}, visit func(uintptr) bool) string {
 			return CircularNotation
 		}
 		keys := rv.MapKeys()
+		sort.Slice(keys, func(i, j int) bool {
+			return keys[i].String() < keys[j].String()
+		})
 		for i, key := range keys {
 			value := marshalCircular(rv.MapIndex(key).Interface(), visit)
 			ret += fmt.Sprintf(`"%s":%s`, key.String(), value)

@@ -33,7 +33,7 @@ func TestUtil_Format_Circular_JSON(t *testing.T) {
 	testObj["data"] = testObj
 	obj := vm.ToValue(testObj).ToObject(vm)
 	ret := Format(vm, "Test: %j", obj)
-	if res := ret.String(); res != `Test: {"name":"John Doe","age":30,"email":"john.doe@example.com","data":[Circular]}` {
+	if res := ret.String(); res != `Test: {"age":30,"data":[Circular],"email":"john.doe@example.com","name":"John Doe"}` {
 		t.Fatalf("Unexpected result: '%s'", res)
 	}
 }
