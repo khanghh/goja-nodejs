@@ -110,36 +110,35 @@ func (r *Registry) getSource(p string) ([]byte, error) {
 	return srcLoader(p)
 }
 
+func (r *Registry) compileSource(name, code string) (*goja.Program, error) {
+	if path.Ext(name) == ".json" {
+		code = "module.exports = JSON.parse('" + template.JSEscapeString(code) + "')"
+	}
+	source := "(function(exports, require, module) {" + code + "})"
+	parsed, err := goja.Parse(name, source, parser.WithSourceMapLoader(r.srcLoader))
+	if err != nil {
+		return nil, err
+	}
+	return goja.CompileAST(parsed, false)
+}
+
 func (r *Registry) getCompiledSource(filepath string) (*goja.Program, error) {
 	r.Lock()
 	defer r.Unlock()
-
-	prg := r.compiled[filepath]
-	if prg == nil {
-		buf, err := r.getSource(filepath)
-		if err != nil {
-			return nil, err
-		}
-		srouce := string(buf)
-
-		if path.Ext(filepath) == ".json" {
-			srouce = "module.exports = JSON.parse('" + template.JSEscapeString(srouce) + "')"
-		}
-
-		source := "(function(exports, require, module) {" + srouce + "\n})"
-		parsed, err := goja.Parse(filepath, source, parser.WithSourceMapLoader(r.srcLoader))
-		if err != nil {
-			return nil, err
-		}
-		prg, err = goja.CompileAST(parsed, false)
-		if err == nil {
-			if r.compiled == nil {
-				r.compiled = make(map[string]*goja.Program)
-			}
-			r.compiled[filepath] = prg
-		}
-		return prg, err
+	if prg, exist := r.compiled[filepath]; exist {
+		return prg, nil
 	}
+
+	buf, err := r.getSource(filepath)
+	if err != nil {
+		return nil, err
+	}
+	prg, err := r.compileSource(filepath, string(buf))
+	if err != nil {
+		return nil, err
+	}
+	r.compiled[filepath] = prg
+
 	return prg, nil
 }
 
@@ -158,19 +157,30 @@ func (r *Registry) Enable(runtime *goja.Runtime) *ModuleResolver {
 	return resolver
 }
 
-func (r *Registry) RegisterNativeModule(name string, module NativeModule) {
+func (r *Registry) RegisterJSModule(name, code string) error {
 	r.Lock()
 	defer r.Unlock()
 
-	if r.natives == nil {
-		r.natives = make(map[string]NativeModule)
+	prg, err := r.compileSource(name, code)
+	if err != nil {
+		return err
 	}
-	name = path.Clean(name)
-	r.natives[name] = module
+	r.compiled[name] = prg
+
+	return nil
+}
+
+func (r *Registry) RegisterNativeModule(name string, module NativeModule) {
+	r.Lock()
+	defer r.Unlock()
+	r.natives[path.Clean(name)] = module
 }
 
 func NewRegistry(opts ...Option) *Registry {
-	r := &Registry{}
+	r := &Registry{
+		compiled: make(map[string]*goja.Program),
+		natives:  make(map[string]NativeModule),
+	}
 
 	for _, opt := range opts {
 		opt(r)

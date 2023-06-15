@@ -16,8 +16,8 @@ type ModuleResolver struct {
 	nodeModules map[string]*goja.Object
 }
 
-// Nodegoja module search algorithm described by
-// https://nodegoja.org/api/modules.html#modules_all_together
+// Nodejs module search algorithm described by
+// https://nodejs.org/api/modules.html#modules_all_together
 func (r *ModuleResolver) resolve(modpath string) (module *goja.Object, err error) {
 	origPath, modpath := modpath, path.Clean(modpath)
 	if modpath == "" {
